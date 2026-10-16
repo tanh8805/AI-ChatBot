@@ -10,28 +10,67 @@ def main() -> None:
         print(f"❌ Khởi động thất bại: {e}")
         sys.exit(1)
 
+    current_session = "default"
+
     print("=" * 60)
-    print("🤖 AI CHATBOT CLI")
-    print("Lệnh: 'exit' hoặc 'quit' để thoát | 'clear' để xóa lịch sử")
+    print("🤖 AI CHATBOT CLI (Đa Session & Tùy chỉnh Persona)")
+    print("Lệnh:")
+    print(" - 'exit' | 'quit'    : Thoát chương trình")
+    print(" - 'clear'            : Xóa lịch sử session hiện tại")
+    print(" - 'session'          : Xem session đang kích hoạt")
+    print(" - 'session <id>'     : Chuyển hoặc tạo session mới")
+    print(" - 'sessions'         : Xem danh sách session đang có")
+    print(" - 'persona <prompt>' : Đổi persona/system prompt cho session này")
+    print(" - 'persona'          : Xem persona hiện tại của session")
     print("=" * 60)
 
     while True:
         try:
-            user_input = input("\nBạn: ").strip()
+            prompt_label = f"[{current_session}] Bạn: " if current_session != "default" else "Bạn: "
+            user_input = input(f"\n{prompt_label}").strip()
             if not user_input:
                 continue
 
-            if user_input.lower() in ("exit", "quit"):
+            cmd = user_input.lower()
+            if cmd in ("exit", "quit"):
                 print("Tạm biệt!")
                 break
 
-            if user_input.lower() == "clear":
-                bot.clear()
-                print("🧹 Đã làm mới phiên hội thoại.")
+            if cmd == "clear":
+                bot.clear(current_session)
+                print(f"🧹 Đã làm mới lịch sử session '{current_session}'.")
+                continue
+
+            if cmd == "sessions":
+                active = bot.list_sessions()
+                print(f"📋 Các session hiện có: {active or ['chưa có tin nhắn']}")
+                continue
+
+            if cmd == "session":
+                print(f"ℹ️ Session hiện tại là: '{current_session}'. Dùng 'session <tên>' để chuyển session.")
+                continue
+
+            if user_input.startswith("session "):
+                new_session = user_input.split(maxsplit=1)[1].strip()
+                if new_session:
+                    current_session = new_session
+                    print(f"👉 Đã chuyển sang session: '{current_session}'")
+                continue
+
+            if cmd == "persona":
+                current_p = bot.get_persona(current_session)
+                print(f"🎭 Persona hiện tại của [{current_session}]:\n{current_p}")
+                continue
+
+            if user_input.startswith("persona "):
+                new_persona = user_input.split(maxsplit=1)[1].strip()
+                if new_persona:
+                    bot.set_persona(current_session, new_persona)
+                    print(f"🎭 Đã cập nhật persona cho session '{current_session}'!")
                 continue
 
             print("Bot: ", end="", flush=True)
-            for chunk in bot.ask_stream(user_input):
+            for chunk in bot.ask_stream(user_input, session_id=current_session):
                 print(chunk, end="", flush=True)
             print()
 

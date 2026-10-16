@@ -1,4 +1,4 @@
-from typing import Iterator, List
+from typing import Iterator, List, Optional
 from google import genai
 from google.genai import errors, types
 from src.base import BaseLLMProvider, ChatMessage
@@ -26,12 +26,17 @@ class GeminiProvider(BaseLLMProvider):
 
         self.api_key = api_key
         self.model_name = model_name
+        self.temperature = temperature
+        self.max_output_tokens = max_output_tokens
+        self.system_prompt = system_prompt
         self.client = genai.Client(api_key=self.api_key)
 
-        self.config = types.GenerateContentConfig(
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            system_instruction=system_prompt if system_prompt else None,
+    def _get_config(self, system_prompt: Optional[str] = None) -> types.GenerateContentConfig:
+        instruction = system_prompt if system_prompt is not None else self.system_prompt
+        return types.GenerateContentConfig(
+            temperature=self.temperature,
+            max_output_tokens=self.max_output_tokens,
+            system_instruction=instruction if instruction else None,
         )
 
     def _handle_error(self, e: Exception) -> None:
@@ -51,7 +56,12 @@ class GeminiProvider(BaseLLMProvider):
             raise NetworkError("Lỗi kết nối mạng tới Google Gemini.", details=str(e)) from e
         raise ChatBotError(f"Lỗi không xác định: {str(e)}", details=str(e)) from e
 
-    def generate(self, messages: List[ChatMessage], **kwargs) -> str:
+    def generate(
+        self,
+        messages: List[ChatMessage],
+        system_prompt: Optional[str] = None,
+        **kwargs,
+    ) -> str:
         try:
             contents = [
                 types.Content(
@@ -60,17 +70,23 @@ class GeminiProvider(BaseLLMProvider):
                 )
                 for msg in messages
             ]
+            config = self._get_config(system_prompt)
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=contents,
-                config=self.config,
+                config=config,
             )
             return response.text or ""
         except Exception as e:
             self._handle_error(e)
             return ""
 
-    def stream_generate(self, messages: List[ChatMessage], **kwargs) -> Iterator[str]:
+    def stream_generate(
+        self,
+        messages: List[ChatMessage],
+        system_prompt: Optional[str] = None,
+        **kwargs,
+    ) -> Iterator[str]:
         try:
             contents = [
                 types.Content(
@@ -79,10 +95,11 @@ class GeminiProvider(BaseLLMProvider):
                 )
                 for msg in messages
             ]
+            config = self._get_config(system_prompt)
             response_stream = self.client.models.generate_content_stream(
                 model=self.model_name,
                 contents=contents,
-                config=self.config,
+                config=config,
             )
             for chunk in response_stream:
                 if chunk.text:

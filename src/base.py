@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterator, List, Literal, TypedDict
+from typing import Iterator, List, Literal, Optional, TypedDict
 
 
 class ChatMessage(TypedDict):
@@ -9,9 +9,19 @@ class ChatMessage(TypedDict):
 
 class BaseLLMProvider(ABC):
     @abstractmethod
-    def generate(self, messages: List[ChatMessage], **kwargs) -> str:
+    def generate(
+        self,
+        messages: List[ChatMessage],
+        system_prompt: Optional[str] = None,
+        **kwargs,
+    ) -> str:
         pass
 
     @abstractmethod
-    def stream_generate(self, messages: List[ChatMessage], **kwargs) -> Iterator[str]:
+    def stream_generate(
+        self,
+        messages: List[ChatMessage],
+        system_prompt: Optional[str] = None,
+        **kwargs,
+    ) -> Iterator[str]:
         pass
